@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">SunDroid Host</string>
+    <string name="accessibility_desc">Mengizinkan SunDroid mengontrol layar sentuh HP dari PC Anda secara real-time.</string>
+    <string name="btn_start_service">Mulai Remote Host (Aktifkan Layar)</string>
+    <string name="btn_stop_service">Hentikan Remote Host</string>
+    <string name="status_idle">Siap Terhubung ke PC</string>
+    <string name="status_running">🟢 SunDroid Aktif - Menunggu Koneksi PC...</string>
+    <string name="status_connected">⚡ Terhubung ke PC! Sedang Mengalirkan Layar...</string>
+</resources>

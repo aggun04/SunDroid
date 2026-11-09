@@ -1,0 +1,11 @@
+<resources>
+    <color name="primary">#EA580C</color> <!-- Sun Orange -->
+    <color name="primary_dark">#C2410C</color>
+    <color name="accent">#F59E0B</color>
+    <color name="bg_dark">#09090B</color>
+    <color name="card_bg">#18181B</color>
+    <color name="text_white">#FAFAFA</color>
+    <color name="text_muted">#A1A1AA</color>
+    <color name="green_active">#22C55E</color>
+    <color name="red_stop">#EF4444</color>
+</resources>
