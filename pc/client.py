@@ -15,6 +15,12 @@ try:
 except ImportError:
     av = None
 
+try:
+    import tkinter as tk
+    from tkinter import messagebox, simpledialog
+except ImportError:
+    tk = None
+
 class SunDroidClient:
     def __init__(self, host="127.0.0.1", video_port=7100, control_port=7101):
         self.host = host
@@ -282,39 +288,138 @@ class SunDroidClient:
                 pass
         print("[*] SunDroid Client ditutup.")
 
+def get_adb_command():
+    # Gunakan adb di samping file exe jika ada, atau fallback ke adb sistem
+    base_dir = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else __file__))
+    candidate = os.path.join(base_dir, "adb.exe" if sys.platform == "win32" else "adb")
+    if os.path.isfile(candidate):
+        return candidate
+    return "adb"
+
 def setup_adb_ports():
-    print("[*] Mengonfigurasi port forwarding USB ADB...")
+    adb_cmd = get_adb_command()
+    print(f"[*] Mengonfigurasi port forwarding USB ADB ({adb_cmd})...")
+    creationflags = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
     try:
-        subprocess.run(["adb", "forward", "tcp:7100", "tcp:7100"], check=True)
-        subprocess.run(["adb", "forward", "tcp:7101", "tcp:7101"], check=True)
+        subprocess.run([adb_cmd, "forward", "tcp:7100", "tcp:7100"], check=True, creationflags=creationflags)
+        subprocess.run([adb_cmd, "forward", "tcp:7101", "tcp:7101"], check=True, creationflags=creationflags)
         print("[OK] Port ADB 7100 & 7101 siap digunakan via kabel USB!")
         return True
     except Exception as e:
         print(f"[!] Warning: ADB tidak ditemukan atau HP belum terhubung: {e}")
         return False
 
-if __name__ == "__main__":
-    target_ip = "127.0.0.1"
+def is_interactive():
+    try:
+        return sys.stdin is not None and hasattr(sys.stdin, "isatty") and sys.stdin.isatty()
+    except Exception:
+        return False
+
+def get_target_ip():
+    # 1. Argumen Command-Line (misal: SunDroid.exe 192.168.1.15)
     if len(sys.argv) > 1:
-        target_ip = sys.argv[1]
-    else:
-        # Prompt user or default to USB ADB
+        ip = sys.argv[1].strip()
+        if ip in ("127.0.0.1", "localhost", "adb"):
+            setup_adb_ports()
+            return "127.0.0.1"
+        return ip
+
+    # 2. Terminal Mode (jika dijalankan via Command Prompt / PowerShell)
+    if is_interactive():
         print("==================================================")
         print("       SunDroid PC - Remote Android Satset        ")
         print("==================================================")
         print("1. Mode Kabel USB (ADB) - Rekomendasi Latensi < 10ms")
         print("2. Mode Wi-Fi (Masukkan IP HP)")
-        choice = input("Pilih mode [1/2, default 1]: ").strip()
-        if choice == "2":
-            target_ip = input("Masukkan IP HP (contoh: 192.168.1.15): ").strip()
-        else:
-            setup_adb_ports()
-            target_ip = "127.0.0.1"
+        try:
+            choice = input("Pilih mode [1/2, default 1]: ").strip()
+            if choice == "2":
+                ip = input("Masukkan IP HP (contoh: 192.168.1.15): ").strip()
+                if ip:
+                    return ip
+                return "127.0.0.1"
+            else:
+                setup_adb_ports()
+                return "127.0.0.1"
+        except (EOFError, RuntimeError):
+            pass
 
+    # 3. GUI Dialog Mode (jika double-click SunDroid.exe di Windows tanpa konsol)
+    if tk is not None:
+        try:
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+
+            choice = messagebox.askyesnocancel(
+                "SunDroid - Mode Koneksi",
+                "Pilih Metode Koneksi SunDroid:\n\n"
+                "[Yes]    -> Mode Kabel USB (ADB)\n"
+                "            Rekomendasi! Latensi < 10ms & super mulus.\n\n"
+                "[No]     -> Mode Wi-Fi\n"
+                "            Koneksi nirkabel (masukkan IP HP).\n\n"
+                "[Cancel] -> Batal & Keluar",
+                icon="question"
+            )
+
+            if choice is None:
+                root.destroy()
+                sys.exit(0)
+            elif choice is True:
+                root.destroy()
+                setup_adb_ports()
+                return "127.0.0.1"
+            else:
+                ip = simpledialog.askstring(
+                    "SunDroid - Mode Wi-Fi",
+                    "Masukkan IP HP Anda (tertera di aplikasi SunDroid HP):\nContoh: 192.168.1.15",
+                    parent=root,
+                    initialvalue="192.168.1."
+                )
+                root.destroy()
+                if ip and ip.strip():
+                    return ip.strip()
+                else:
+                    sys.exit(0)
+        except Exception as e:
+            print(f"[!] Warning: Gagal memuat dialog GUI: {e}")
+
+    # Fallback default USB ADB jika GUI tidak tersedia
+    setup_adb_ports()
+    return "127.0.0.1"
+
+def show_connection_error(host):
+    err_msg = (
+        f"Gagal terhubung ke HP ({host})!\n\n"
+        "Periksa hal berikut:\n"
+        "1. Pastikan aplikasi SunDroid di HP sudah dibuka dan 'Mulai Mirroring' aktif.\n"
+        "2. Jika via USB: Pastikan USB Debugging aktif di HP dan kabel terhubung.\n"
+        "3. Jika via Wi-Fi: Pastikan PC dan HP berada di jaringan Wi-Fi yang sama."
+    )
+    print(f"\n[!] {err_msg}\n")
+
+    if is_interactive():
+        try:
+            input("Tekan Enter untuk keluar...")
+        except (EOFError, RuntimeError):
+            pass
+        return
+
+    if tk is not None:
+        try:
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            messagebox.showerror("SunDroid - Gagal Terhubung", err_msg)
+            root.destroy()
+        except Exception:
+            pass
+
+if __name__ == "__main__":
+    target_ip = get_target_ip()
     client = SunDroidClient(host=target_ip)
     if client.connect():
         client.start_video_stream()
         client.run_gui()
     else:
-        print("[!] Gagal terhubung. Pastikan aplikasi SunDroid di HP sudah aktif!")
-        input("Tekan Enter untuk keluar...")
+        show_connection_error(target_ip)
