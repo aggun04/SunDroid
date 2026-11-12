@@ -6,4 +6,8 @@
     <string name="status_idle">Siap Terhubung ke PC</string>
     <string name="status_running">🟢 SunDroid Aktif - Menunggu Koneksi PC...</string>
     <string name="status_connected">⚡ Terhubung ke PC! Sedang Mengalirkan Layar...</string>
+    <string name="btn_copy_ip">Salin IP</string>
+    <string name="btn_refresh_ip">Refresh</string>
+    <string name="ip_copied">Alamat IP berhasil disalin ke clipboard!</string>
+    <string name="no_ip_found">Tidak ada koneksi Wi-Fi / Hotspot aktif</string>
 </resources>

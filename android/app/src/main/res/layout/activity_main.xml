@@ -59,19 +59,80 @@
                     android:layout_marginVertical="12dp"
                     android:background="#27272A" />
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/txtIpBadge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Alamat IP HP (Wi-Fi):"
+                            android:textColor="@color/accent"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/txtIpAddress"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Mencari IP..."
+                            android:textColor="@color/text_white"
+                            android:textSize="20sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <Button
+                        android:id="@+id/btnCopyIp"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="@string/btn_copy_ip"
+                        android:textSize="12sp" />
+
+                    <Button
+                        android:id="@+id/btnRefreshIp"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="@string/btn_refresh_ip"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
                 <TextView
-                    android:id="@+id/txtIpAddress"
+                    android:id="@+id/txtSecondaryIp"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="IP Wi-Fi: 192.168.x.x (Port: 7100, 7101)"
-                    android:textColor="@color/text_white"
-                    android:textSize="14sp" />
+                    android:layout_marginTop="4dp"
+                    android:textColor="@color/text_muted"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/txtPortInfo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Port Video: 7100 | Port Kontrol: 7101"
+                    android:textColor="@color/text_muted"
+                    android:textSize="12sp" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="🔌 Mode USB: Hubungkan kabel USB dan buka PC Client"
+                    android:text="🔌 Mode USB: Sambungkan kabel USB, lalu buka SunDroid di PC."
                     android:textColor="@color/text_muted"
                     android:textSize="12sp" />
 

@@ -1,11 +1,13 @@
 package com.sundroid.host.service
 
 import android.content.Context
+import android.media.AudioManager
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.WindowManager
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.io.PrintWriter
 import java.net.ServerSocket
 import java.net.Socket
 import kotlin.math.abs
@@ -18,12 +20,15 @@ class ControlServer(
     @Volatile private var isRunning = false
     private var serverThread: Thread? = null
 
+    @Volatile private var activeClientSocket: Socket? = null
+
     // Tracking active touch positions for swipe calculations
     private val touchStartMap = mutableMapOf<Int, Pair<Float, Float>>()
     private val touchLastMap = mutableMapOf<Int, Pair<Float, Float>>()
 
     private val screenWidth: Float
     private val screenHeight: Float
+    private val audioManager: AudioManager?
 
     companion object {
         private const val TAG = "ControlServer"
@@ -35,6 +40,7 @@ class ControlServer(
         wm.defaultDisplay.getRealMetrics(metrics)
         screenWidth = metrics.widthPixels.toFloat()
         screenHeight = metrics.heightPixels.toFloat()
+        audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
     }
 
     fun start() {
@@ -53,8 +59,19 @@ class ControlServer(
             while (isRunning) {
                 val client = serverSocket?.accept() ?: break
                 client.tcpNoDelay = true
+
+                // Close previous client if any
+                try {
+                    activeClientSocket?.close()
+                } catch (e: Exception) {}
+                activeClientSocket = client
+
                 Log.i(TAG, "PC Client connected to Control channel from ${client.inetAddress.hostAddress}")
-                handleClient(client)
+
+                // Run client handling in dedicated worker thread so accept loop is never blocked!
+                Thread({
+                    handleClient(client)
+                }, "ControlClientWorker").start()
             }
         } catch (e: Exception) {
             if (isRunning) {
@@ -67,18 +84,28 @@ class ControlServer(
         val a11y = SunDroidAccessibilityService.instance
         try {
             val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
-            while (isRunning) {
+            val writer = PrintWriter(socket.getOutputStream(), true)
+
+            while (isRunning && !socket.isClosed) {
                 val line = reader.readLine() ?: break
                 if (line.isNotBlank()) {
-                    processCommand(line.trim(), a11y)
+                    val cmd = line.trim()
+                    if (cmd == "PING") {
+                        writer.println("PONG")
+                    } else {
+                        processCommand(cmd, a11y)
+                    }
                 }
             }
         } catch (e: Exception) {
-            Log.d(TAG, "Control client connection closed: ${e.message}")
+            Log.d(TAG, "Control client connection ended: ${e.message}")
         } finally {
             try {
                 socket.close()
             } catch (e: Exception) {}
+            if (activeClientSocket == socket) {
+                activeClientSocket = null
+            }
         }
     }
 
@@ -136,10 +163,40 @@ class ControlServer(
                     a11y?.injectSwipe(startX, startY, startX, endY, 80)
                 }
             }
-            "CMD" -> { // System Commands: CMD BACK / CMD HOME / CMD POWER
+            "CMD" -> { // System Commands: CMD BACK / CMD HOME / CMD POWER / CMD VOL_UP / etc.
                 if (parts.size >= 2) {
-                    val act = parts[1]
-                    a11y?.injectGlobalAction(act)
+                    val act = parts[1].uppercase()
+                    when (act) {
+                        "VOL_UP" -> {
+                            audioManager?.adjustStreamVolume(
+                                AudioManager.STREAM_MUSIC,
+                                AudioManager.ADJUST_RAISE,
+                                AudioManager.FLAG_SHOW_UI
+                            )
+                        }
+                        "VOL_DOWN" -> {
+                            audioManager?.adjustStreamVolume(
+                                AudioManager.STREAM_MUSIC,
+                                AudioManager.ADJUST_LOWER,
+                                AudioManager.FLAG_SHOW_UI
+                            )
+                        }
+                        "KEY_BACKSPACE" -> {
+                            a11y?.injectBackspace()
+                        }
+                        "KEY_ENTER" -> {
+                            a11y?.injectText("\n")
+                        }
+                        else -> {
+                            a11y?.injectGlobalAction(act)
+                        }
+                    }
+                }
+            }
+            "TXT" -> { // Text input: TXT <content>
+                if (parts.size >= 2) {
+                    val text = cmd.substringAfter("TXT ")
+                    a11y?.injectText(text)
                 }
             }
         }
@@ -148,9 +205,15 @@ class ControlServer(
     fun stop() {
         isRunning = false
         try {
+            activeClientSocket?.close()
+        } catch (e: Exception) {}
+        activeClientSocket = null
+
+        try {
             serverSocket?.close()
         } catch (e: Exception) {}
         serverSocket = null
+
         try {
             serverThread?.join(500)
         } catch (e: Exception) {}
